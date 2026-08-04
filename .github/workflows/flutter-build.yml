@@ -6,7 +6,8 @@
 #
 # Secrets yang diperlukan (sama seperti repo aplikasi kasir):
 #   KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_PASSWORD,
-#   SUPABASE_URL, SUPABASE_ANON_KEY
+#   SUPABASE_URL, SUPABASE_ANON_KEY,
+#   SUPABASE_DEVICE_EMAIL, SUPABASE_DEVICE_PASSWORD
 # =============================================================
 name: Flutter Build
 
@@ -58,12 +59,16 @@ jobs:
           # Label nama aplikasi yang tampil di launcher Android.
           sed -i 's/android:label="pengeluaran"/android:label="Pengeluaran Nanda"/' \
             android/app/src/main/AndroidManifest.xml
-          # Izin kamera untuk foto nota (image_picker).
-          sed -i 's|<manifest xmlns:android="http://schemas.android.com/apk/res/android">|<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.CAMERA"/>|' \
+          # Izin INTERNET + NETWORK_STATE wajib di build release
+          # (v1.0.2, permintaan pemilik: tanpa izin ini APK
+          #  gagal konek ke Supabase — error "Failed host lookup"),
+          # plus CAMERA untuk foto nota (image_picker).
+          sed -i 's|<manifest xmlns:android="http://schemas.android.com/apk/res/android">|<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>\n    <uses-permission android:name="android.permission.CAMERA"/>|' \
             android/app/src/main/AndroidManifest.xml
 
-      # 4a. Pasang ikon aplikasi Pengeluaran (hijau dompet): ikon PNG
-      #     di branding/ disalin menggantikan ikon default Flutter.
+      # 4a. Pasang ikon aplikasi Pengeluaran (logo Toko Rejeki —
+      #     permintaan pemilik): ikon PNG di branding/ disalin
+      #     menggantikan ikon default Flutter.
       - name: Pasang ikon Pengeluaran
         run: |
           set -e
