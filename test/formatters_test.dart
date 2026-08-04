@@ -32,9 +32,11 @@ void main() {
     });
 
     test('compact', () {
+      // '0.###' membulatkan ke 3 angka di belakang koma:
+      // 1.250.000.000 / 1 M = 1,25 -> "1,25 M".
       expect(Formatters.compact(1500), '1,5 rb');
       expect(Formatters.compact(2500000), '2,5 jt');
-      expect(Formatters.compact(1250000000), '1,3 M');
+      expect(Formatters.compact(1250000000), '1,25 M');
       expect(Formatters.compact(500), '500');
     });
   });
