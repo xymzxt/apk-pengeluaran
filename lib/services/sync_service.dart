@@ -61,9 +61,10 @@ class SyncService {
       return const SyncSummary(
           skippedReason: 'Supabase belum dikonfigurasi');
     }
-    if (!supa.isLoggedIn) {
+    // Pastikan sesi cloud (robot) ada; bila gagal, berarti offline.
+    if (!await supa.ensureCloudSignIn()) {
       return const SyncSummary(
-          skippedReason: 'Login diperlukan untuk sinkronisasi');
+          skippedReason: 'Belum terhubung ke cloud — periksa internet');
     }
     if (_running) {
       return const SyncSummary(skippedReason: 'Sinkronisasi sedang berjalan');

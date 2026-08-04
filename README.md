@@ -8,9 +8,11 @@ khusus untuk **uang keluar**.
 
 ## Fitur
 
-- 🔐 **Login khusus owner** (Email + Password, Supabase Auth),
-  show/hide password, reset password via **kode Gmail**, tetap login
-  sampai logout
+- 🔐 **Login gaya aplikasi kasir**: pilih NAMA anggota — owner (Nanda)
+  pakai **sandi khusus** (show/hide sandi, bisa diganti di Pengaturan),
+  keluarga (Kasir, Donny, Sonny, Yono) **tap nama saja**; tetap masuk
+  sampai Logout/Ganti Pengguna. Sinkron cloud otomatis lewat akun
+  robot perangkat di belakang layar (tanpa menyuruh pengguna apa pun)
 - 📊 **Dashboard**: total hari ini / minggu ini / bulan ini / tahun
   ini, grafik per bulan, pengeluaran terakhir, terbesar bulan ini,
   jumlah transaksi
@@ -65,8 +67,8 @@ khusus untuk **uang keluar**.
    `supabase/migrations/20260804000010_pengeluaran.sql` → **Run**
    (membuat 3 tabel: `expense_users`, `expense_categories`,
    `expenses` + RLS + bucket `nota-pengeluaran`).
-3. Login di aplikasi memakai **Gmail & password owner** yang sama
-   dengan akun online aplikasi kasir.
+3. Buka aplikasi → pilih nama. Owner masuk dengan sandi bawaan
+   **nanda123** (segera ganti di Pengaturan → Ganti Sandi Owner).
 
 ## Build APK (GitHub Actions)
 
@@ -76,7 +78,9 @@ tiap push ke `main`:
 - Artifact: **`Pengeluaran-APK`**; Release: `PengeluaranNandaStore.apk`
 - Secrets yang diperlukan (sama nilainya dengan repo aplikasi kasir):
   `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_PASSWORD`,
-  `SUPABASE_URL`, `SUPABASE_ANON_KEY`
+  `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
+  `SUPABASE_DEVICE_EMAIL`, `SUPABASE_DEVICE_PASSWORD`
+  (akun robot perangkat untuk sinkron otomatis — login gaya kasir)
 
 ## Lingkungan Pengembangan
 

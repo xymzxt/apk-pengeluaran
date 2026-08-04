@@ -13,6 +13,7 @@ import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
 import '../core/constants/app_constants.dart';
+import '../utils/hash.dart';
 
 class DatabaseHelper {
   DatabaseHelper._();
@@ -31,10 +32,60 @@ class DatabaseHelper {
       dbPath,
       version: AppConstants.dbVersion,
       onCreate: _create,
+      onUpgrade: _upgrade,
     );
   }
 
+  /// Migrasi antar versi (v1.0.1 tambah tabel app_users).
+  Future<void> _upgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await _createAppUsers(db);
+    }
+  }
+
   Future<void> _create(Database db, int version) async {
+    await _createAppUsers(db);
+    await _createCoreTables(db);
+  }
+
+  /// Tabel pengguna LOKAL untuk login gaya kasir (v1.0.1, permintaan
+  /// pemilik): owner pakai sandi khusus (hash), keluarga tanpa sandi.
+  Future<void> _createAppUsers(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS app_users (
+        id            TEXT PRIMARY KEY,
+        name          TEXT NOT NULL,
+        role          TEXT NOT NULL DEFAULT 'keluarga',
+        password_hash TEXT,
+        is_deleted    INTEGER NOT NULL DEFAULT 0,
+        created_at    TEXT NOT NULL,
+        updated_at    TEXT NOT NULL
+      )
+    ''');
+
+    // Seed anggota bawaan (id tetap agar tidak dobel saat migrasi).
+    final now = DateTime.now().toIso8601String();
+    for (final u in AppConstants.defaultUsers) {
+      await db.insert(
+        'app_users',
+        {
+          'id': u['id'],
+          'name': u['name'],
+          'role': u['role'],
+          // Hanya owner yang punya sandi (hash dari sandi bawaan).
+          'password_hash': u['role'] == 'owner'
+              ? AppHash.of(AppConstants.defaultOwnerPassword)
+              : null,
+          'is_deleted': 0,
+          'created_at': now,
+          'updated_at': now,
+        },
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
+    }
+  }
+
+  Future<void> _createCoreTables(Database db) async {
     // --- Kategori pengeluaran ---
     await db.execute('''
       CREATE TABLE categories (

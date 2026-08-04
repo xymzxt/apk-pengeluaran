@@ -44,6 +44,10 @@ jobs:
         run: |
           echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
           echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+          # Akun robot perangkat (v1.0.1): login cloud otomatis untuk
+          # sinkron di belakang layar — sama seperti aplikasi kasir.
+          echo "SUPABASE_DEVICE_EMAIL=${{ secrets.SUPABASE_DEVICE_EMAIL }}" >> .env
+          echo "SUPABASE_DEVICE_PASSWORD=${{ secrets.SUPABASE_DEVICE_PASSWORD }}" >> .env
 
       # 4. Generate folder android/ agar selalu cocok dengan versi
       #    Flutter terbaru (folder platform tidak disimpan di repo).

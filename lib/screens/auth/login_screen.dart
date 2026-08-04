@@ -1,16 +1,21 @@
-/// Layar Login khusus OWNER (SPEC-PENGELUARAN.md):
-/// Email + Password, tombol SHOW PASSWORD (ikon mata), tautan
-/// "Lupa password" -> kirim kode ke Gmail -> ganti password baru.
-/// Tetap login sampai pengguna logout. — v1.0.0.
+/// Layar Login gaya aplikasi kasir (v1.0.1 — permintaan pemilik).
+///
+/// Bukan email+password lagi. Yang tampil DAFTAR NAMA anggota:
+/// - Keluarga (Kasir, Donny, Sonny, Yono): tap nama -> langsung masuk.
+/// - Owner (Nanda): tap nama -> dialog sandi khusus (ada mata show
+///   password). Sinkron cloud berjalan otomatis lewat akun robot
+///   perangkat — pengguna tidak perlu tahu apa-apa soal itu.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/theme/app_colors.dart';
+import '../../database/expense_repository.dart';
+import '../../models/app_user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/page_transitions.dart';
-import '../../utils/validators.dart';
 import '../../widgets/app_logo.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../main_navigation.dart';
@@ -23,134 +28,109 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-
-  bool _obscure = true;
+  List<AppUserModel>? _users;
+  bool _loading = true;
   bool _busy = false;
 
   @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _loadUsers();
   }
 
-  Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _busy = true);
-    final result = await ref
-        .read(authProvider.notifier)
-        .login(_emailController.text.trim(), _passwordController.text);
-    if (!mounted) return;
-    setState(() => _busy = false);
-    showAppSnackBar(context, result.message, isError: !result.ok);
-    if (result.ok) {
-      Navigator.of(context)
-          .pushReplacement(fadeRoute(const MainNavigation()));
+  Future<void> _loadUsers() async {
+    final users = await ExpenseRepository.instance.getAppUsers();
+    if (mounted) {
+      setState(() {
+        _users = users;
+        _loading = false;
+      });
     }
   }
 
+  Future<void> _enter(AppUserModel user, {String? password}) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final auth = ref.read(authProvider.notifier);
+    final result = user.isOwner
+        ? await auth.loginAsOwner(user, password ?? '')
+        : await auth.loginAsFamily(user);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (result.ok) {
+      Navigator.of(context)
+          .pushReplacement(fadeRoute(const MainNavigation()));
+    } else {
+      showAppSnackBar(context, result.message, isError: true);
+    }
+  }
+
+  // -----------------------------------------------------------
+  // UI
+  // -----------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
     return Scaffold(
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const AppLogo(size: 96),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Pengeluaran',
-                    style: theme.textTheme.headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  Text(
-                    'Login khusus pemilik toko',
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: theme.hintColor),
-                  ),
-                  const SizedBox(height: 28),
-                  Card(
-                    margin: EdgeInsets.zero,
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          TextFormField(
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            decoration: const InputDecoration(
-                              labelText: 'Email Gmail',
-                              hintText: 'nama@gmail.com',
-                              prefixIcon: Icon(Icons.email_outlined),
-                            ),
-                            validator: Validators.email,
-                            textInputAction: TextInputAction.next,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const AppLogo(size: 96),
+                const SizedBox(height: 16),
+                Text(
+                  'Pengeluaran',
+                  style: theme.textTheme.headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  'Pilih nama untuk masuk',
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: theme.hintColor),
+                ),
+                const SizedBox(height: 24),
+
+                // --- Daftar nama anggota ---
+                Card(
+                  margin: EdgeInsets.zero,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: _loading
+                        ? const Padding(
+                            padding: EdgeInsets.all(28),
+                            child: Center(
+                                child: CircularProgressIndicator()),
+                          )
+                        : Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (var i = 0; i < _users!.length; i++) ...[
+                                if (i > 0)
+                                  const Divider(height: 1, indent: 64),
+                                _userTile(_users![i], theme),
+                              ],
+                            ],
                           ),
-                          const SizedBox(height: 14),
-                          TextFormField(
-                            controller: _passwordController,
-                            obscureText: _obscure,
-                            decoration: InputDecoration(
-                              labelText: 'Password',
-                              prefixIcon:
-                                  const Icon(Icons.lock_outline_rounded),
-                              // Tombol SHOW PASSWORD (SPEC).
-                              suffixIcon: IconButton(
-                                icon: Icon(_obscure
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined),
-                                tooltip: _obscure
-                                    ? 'Tampilkan password'
-                                    : 'Sembunyikan password',
-                                onPressed: () =>
-                                    setState(() => _obscure = !_obscure),
-                              ),
-                            ),
-                            validator: Validators.password,
-                            onFieldSubmitted: (_) => _login(),
-                          ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: _busy ? null : _showForgotDialog,
-                              child: const Text('Lupa password?'),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          ElevatedButton.icon(
-                            onPressed: _busy ? null : _login,
-                            icon: _busy
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white))
-                                : const Icon(Icons.login_rounded),
-                            label: Text(_busy ? 'Memeriksa...' : 'Masuk'),
-                          ),
-                        ],
-                      ),
-                    ),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    '${AppConstants.appName} v${AppConstants.appVersion}',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.hintColor),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Keluarga tap nama saja, owner pakai sandi.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.hintColor),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${AppConstants.appName} v${AppConstants.appVersion}',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.hintColor),
+                ),
+              ],
             ),
           ),
         ),
@@ -158,142 +138,127 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
+  Widget _userTile(AppUserModel user, ThemeData theme) {
+    final isOwner = user.isOwner;
+    return ListTile(
+      enabled: !_busy,
+      leading: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: (isOwner ? AppColors.primary : AppColors.info)
+              .withValues(alpha: 0.14),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          isOwner ? Icons.workspace_premium_rounded : Icons.person_rounded,
+          color: isOwner ? AppColors.primary : AppColors.info,
+        ),
+      ),
+      title: Text(
+        user.name,
+        style: theme.textTheme.titleSmall
+            ?.copyWith(fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(
+        isOwner ? 'Owner • pakai sandi' : 'Keluarga • tap untuk masuk',
+        style: theme.textTheme.bodySmall
+            ?.copyWith(color: theme.hintColor, fontSize: 11.5),
+      ),
+      trailing: _busy
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2))
+          : Icon(
+              isOwner ? Icons.lock_outline_rounded : Icons.login_rounded,
+              size: 20,
+              color: theme.hintColor,
+            ),
+      onTap: () {
+        if (isOwner) {
+          _askOwnerPassword(user);
+        } else {
+          _enter(user);
+        }
+      },
+    );
+  }
+
   // -----------------------------------------------------------
-  // LUPA PASSWORD — dialog 2 langkah:
-  // 1) isi email -> kirim kode ke Gmail
-  // 2) isi kode + password baru -> selesai, otomatis login
+  // Dialog SANDI OWNER (dengan mata show/hide ala aplikasi kasir)
   // -----------------------------------------------------------
-  Future<void> _showForgotDialog() async {
-    final emailController =
-        TextEditingController(text: _emailController.text.trim());
-    final codeController = TextEditingController();
-    final passController = TextEditingController();
-    bool codeSent = false;
-    bool busy = false;
-    bool obscureNew = true;
+  Future<void> _askOwnerPassword(AppUserModel user) async {
+    final controller = TextEditingController();
+    bool obscure = true;
+    bool checking = false;
 
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            Future<void> sendCode() async {
-              final email = emailController.text.trim();
-              if (Validators.email(email) != null) {
-                showAppSnackBar(context, 'Isi email Gmail yang benar dulu ya.',
-                    isError: true);
-                return;
-              }
-              setDialogState(() => busy = true);
+            Future<void> submit() async {
+              if (checking) return;
+              setDialogState(() => checking = true);
+              final auth = ref.read(authProvider.notifier);
               final result =
-                  await ref.read(authProvider.notifier).sendResetCode(email);
+                  await auth.loginAsOwner(user, controller.text);
               if (!context.mounted) return;
-              setDialogState(() {
-                busy = false;
-                codeSent = result.ok;
-              });
-              showAppSnackBar(context, result.message, isError: !result.ok);
-            }
-
-            Future<void> confirm() async {
-              final email = emailController.text.trim();
-              final code = codeController.text.trim();
-              final pass = passController.text;
-              if (code.length < 6) {
-                showAppSnackBar(context, 'Isi kode 6–8 digit dari Gmail.',
-                    isError: true);
-                return;
-              }
-              if (pass.length < 6) {
-                showAppSnackBar(context, 'Password baru minimal 6 karakter.',
-                    isError: true);
-                return;
-              }
-              setDialogState(() => busy = true);
-              final result = await ref
-                  .read(authProvider.notifier)
-                  .resetPassword(email, code, pass);
-              if (!context.mounted) return;
-              setDialogState(() => busy = false);
-              showAppSnackBar(context, result.message, isError: !result.ok);
+              setDialogState(() => checking = false);
               if (result.ok) {
                 Navigator.of(dialogContext).pop();
                 if (mounted) {
                   Navigator.of(this.context)
                       .pushReplacement(fadeRoute(const MainNavigation()));
                 }
+              } else {
+                showAppSnackBar(context, result.message, isError: true);
               }
             }
 
             return AlertDialog(
-              title: const Text('Reset Password'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'Kode reset akan dikirim ke Gmail owner. '
-                      'Isi email, kirim kode, lalu masukkan kode & '
-                      'password baru.',
-                      style: TextStyle(fontSize: 13),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'Email Gmail',
-                        prefixIcon: Icon(Icons.email_outlined),
+              title: Text('Sandi ${user.name}'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Masukkan sandi khusus owner.',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: controller,
+                    obscureText: obscure,
+                    autofocus: true,
+                    onSubmitted: (_) => submit(),
+                    decoration: InputDecoration(
+                      labelText: 'Sandi Owner',
+                      prefixIcon: const Icon(Icons.lock_outline_rounded),
+                      // Tombol SHOW PASSWORD (SPEC).
+                      suffixIcon: IconButton(
+                        icon: Icon(obscure
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined),
+                        tooltip: obscure
+                            ? 'Tampilkan sandi'
+                            : 'Sembunyikan sandi',
+                        onPressed: () =>
+                            setDialogState(() => obscure = !obscure),
                       ),
                     ),
-                    if (codeSent) ...[
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: codeController,
-                        keyboardType: TextInputType.number,
-                        maxLength: 10,
-                        decoration: const InputDecoration(
-                          labelText: 'Kode dari Gmail (6–8 digit)',
-                          prefixIcon: Icon(Icons.pin_outlined),
-                          counterText: '',
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      TextField(
-                        controller: passController,
-                        obscureText: obscureNew,
-                        decoration: InputDecoration(
-                          labelText: 'Password baru',
-                          prefixIcon: const Icon(Icons.lock_reset_rounded),
-                          suffixIcon: IconButton(
-                            icon: Icon(obscureNew
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined),
-                            onPressed: () => setDialogState(
-                                () => obscureNew = !obscureNew),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+                  ),
+                ],
               ),
               actions: [
                 TextButton(
-                  onPressed:
-                      busy ? null : () => Navigator.of(dialogContext).pop(),
+                  onPressed: () => Navigator.of(dialogContext).pop(),
                   child: const Text('Batal'),
                 ),
-                if (!codeSent)
-                  FilledButton(
-                    onPressed: busy ? null : sendCode,
-                    child: Text(busy ? 'Mengirim...' : 'Kirim Kode'),
-                  )
-                else
-                  FilledButton(
-                    onPressed: busy ? null : confirm,
-                    child: Text(busy ? 'Memproses...' : 'Ganti Password'),
-                  ),
+                FilledButton(
+                  onPressed: checking ? null : submit,
+                  child: Text(checking ? 'Memeriksa...' : 'Masuk'),
+                ),
               ],
             );
           },
@@ -301,8 +266,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       },
     );
 
-    emailController.dispose();
-    codeController.dispose();
-    passController.dispose();
+    controller.dispose();
   }
 }

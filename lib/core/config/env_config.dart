@@ -23,4 +23,19 @@ class EnvConfig {
   /// `true` jika konfigurasi Supabase valid sehingga sinkronisasi aktif.
   static bool get isSupabaseConfigured =>
       supabaseUrl.startsWith('https://') && supabaseAnonKey.length > 20;
+
+  // --- Akun "robot perangkat" (v1.0.1, permintaan pemilik: login
+  // aplikasi bergaya kasir, jadi sinkron cloud ditangani robot di
+  // belakang layar — sama persis dengan aplikasi kasir v1.5.8) ---
+  // Kredensial robot ditanam saat build dari GitHub Secrets. HP mana
+  // pun otomatis login cloud dengan akun ini tanpa disuruh siapa pun.
+  static String get deviceEmail =>
+      dotenv.env['SUPABASE_DEVICE_EMAIL']?.trim() ?? '';
+
+  static String get devicePassword =>
+      dotenv.env['SUPABASE_DEVICE_PASSWORD']?.trim() ?? '';
+
+  /// `true` jika akun robot disediakan saat build.
+  static bool get hasDeviceAccount =>
+      deviceEmail.contains('@') && devicePassword.length >= 6;
 }

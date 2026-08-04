@@ -44,9 +44,38 @@ class SupabaseService {
         anonKey: EnvConfig.supabaseAnonKey,
       );
       _ready = true;
+      // Login cloud robot otomatis (v1.0.1, permintaan pemilik):
+      // sinkron antar-HP berjalan di belakang layar tanpa menyuruh
+      // pengguna mengisi email cloud — persis aplikasi kasir v1.5.8.
+      await _autoDeviceSignIn();
     } catch (_) {
       _ready = false;
     }
+  }
+
+  /// Login cloud dengan akun "robot perangkat" (ditanam dari secrets).
+  /// Di-skip bila: robot tidak ditanam, atau sesi cloud sudah ada.
+  Future<void> _autoDeviceSignIn() async {
+    if (!_ready || !EnvConfig.hasDeviceAccount) return;
+    if (currentUser != null) return;
+    try {
+      await client.auth.signInWithPassword(
+        email: EnvConfig.deviceEmail,
+        password: EnvConfig.devicePassword,
+      );
+    } catch (_) {
+      // Gagal login robot (offline dsb) -> sinkron dicoba lagi saat
+      // syncNow dipanggil berikutnya (lewat ensureCloudSignIn).
+    }
+  }
+
+  /// Dipanggil SyncService sebelum push/pull: memastikan sesi cloud
+  /// robot ada; bila belum, dicoba login sekali lagi.
+  Future<bool> ensureCloudSignIn() async {
+    if (!_ready) return false;
+    if (currentUser != null) return true;
+    await _autoDeviceSignIn();
+    return currentUser != null;
   }
 
   // -----------------------------------------------------------

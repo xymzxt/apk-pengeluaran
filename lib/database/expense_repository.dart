@@ -9,6 +9,7 @@ library;
 import 'package:uuid/uuid.dart';
 
 import '../database/database_helper.dart';
+import '../models/app_user_model.dart';
 import '../models/category_model.dart';
 import '../models/expense_model.dart';
 import '../utils/period.dart';
@@ -20,6 +21,51 @@ class ExpenseRepository {
   static const Uuid _uuid = Uuid();
 
   String _now() => DateTime.now().toIso8601String();
+
+  // ==========================================================
+  // PENGGUNA LOKAL (login gaya kasir, v1.0.1)
+  // ==========================================================
+
+  /// Semua pengguna aktif (owner dulu, lalu keluarga sesuai urutan
+  /// seed — rapi seperti daftar nama di aplikasi kasir).
+  Future<List<AppUserModel>> getAppUsers() async {
+    final db = await DatabaseHelper.instance.database;
+    final rows = await db.query('app_users',
+        where: 'is_deleted = 0',
+        orderBy: "CASE role WHEN 'owner' THEN 0 ELSE 1 END, created_at");
+    return rows.map(AppUserModel.fromDb).toList();
+  }
+
+  /// Satu pengguna by id.
+  Future<AppUserModel?> getAppUser(String id) async {
+    final db = await DatabaseHelper.instance.database;
+    final rows = await db.query('app_users',
+        where: 'id = ? AND is_deleted = 0', whereArgs: [id], limit: 1);
+    if (rows.isEmpty) return null;
+    return AppUserModel.fromDb(rows.first);
+  }
+
+  /// Ubah nama tampilan pengguna.
+  Future<void> updateAppUserName(String id, String name) async {
+    final db = await DatabaseHelper.instance.database;
+    await db.update(
+      'app_users',
+      {'name': name.trim(), 'updated_at': _now()},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// Ubah sandi owner (hanya menyimpan HASH-nya).
+  Future<void> updateAppUserPassword(String id, String passwordHash) async {
+    final db = await DatabaseHelper.instance.database;
+    await db.update(
+      'app_users',
+      {'password_hash': passwordHash, 'updated_at': _now()},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
 
   // ==========================================================
   // KATEGORI

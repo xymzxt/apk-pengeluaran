@@ -76,6 +76,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return 'Nama berhasil diubah.';
   }
 
+  /// Ganti SANDI OWNER lokal (v1.0.1 — login gaya kasir, permintaan
+  /// pemilik). Verifikasi sandi lama terhadap hash tersimpan.
   Future<String?> _changePassword() async {
     final oldController = TextEditingController();
     final newController = TextEditingController();
@@ -88,7 +90,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) => AlertDialog(
-            title: const Text('Ubah Password'),
+            title: const Text('Ganti Sandi Owner'),
             content: Form(
               key: formKey,
               child: Column(
@@ -98,7 +100,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     controller: oldController,
                     obscureText: obscureOld,
                     decoration: InputDecoration(
-                      labelText: 'Password lama',
+                      labelText: 'Sandi lama',
                       prefixIcon: const Icon(Icons.lock_outline_rounded),
                       suffixIcon: IconButton(
                         icon: Icon(obscureOld
@@ -108,14 +110,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             () => obscureOld = !obscureOld),
                       ),
                     ),
-                    validator: Validators.password,
+                    validator: (v) => Validators.required(v, 'Sandi lama'),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: newController,
                     obscureText: obscureNew,
                     decoration: InputDecoration(
-                      labelText: 'Password baru (min. 6 karakter)',
+                      labelText: 'Sandi baru (min. 4 karakter)',
                       prefixIcon: const Icon(Icons.lock_reset_rounded),
                       suffixIcon: IconButton(
                         icon: Icon(obscureNew
@@ -125,7 +127,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             () => obscureNew = !obscureNew),
                       ),
                     ),
-                    validator: Validators.password,
+                    validator: (v) {
+                      final empty = Validators.required(v, 'Sandi baru');
+                      if (empty != null) return empty;
+                      if (v!.length < 4) {
+                        return 'Sandi baru minimal 4 karakter';
+                      }
+                      return null;
+                    },
                   ),
                 ],
               ),
@@ -156,7 +165,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
     final result = await ref
         .read(authProvider.notifier)
-        .changePassword(oldController.text, newController.text);
+        .changeOwnerPassword(oldController.text, newController.text);
     oldController.dispose();
     newController.dispose();
     if (!result.ok) {
@@ -171,9 +180,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _confirmLogout() async {
     final ok = await showConfirmDialog(
       context,
-      title: 'Keluar dari Akun?',
-      message: 'Kamu harus login lagi untuk membuka aplikasi. '
-          'Data lokal di HP ini tetap aman.',
+      title: 'Keluar / Ganti Pengguna?',
+      message: 'Kamu akan kembali ke layar pilih nama. '
+          'Seluruh data pengeluaran di HP ini tetap aman.',
       confirmText: 'Keluar',
       danger: true,
     );
@@ -230,16 +239,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            auth.name.isEmpty ? 'Owner' : auth.name,
+                            auth.name.isEmpty ? 'Belum masuk' : auth.name,
                             style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w700),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           Text(
-                            auth.email.isEmpty
-                                ? 'Belum login'
-                                : auth.email,
+                            auth.isOwner
+                                ? 'Owner toko'
+                                : 'Keluarga',
                             style: theme.textTheme.bodySmall
                                 ?.copyWith(color: theme.hintColor),
                             maxLines: 1,
@@ -265,19 +274,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               margin: const EdgeInsets.only(bottom: 16),
               child: Column(
                 children: [
-                  _menuTile(
-                    icon: Icons.lock_reset_rounded,
-                    color: AppColors.info,
-                    title: 'Ubah Password',
-                    subtitle: 'Ganti password akun owner',
-                    onTap: _busy ? null : () => _runGuarded(_changePassword),
-                  ),
-                  const Divider(height: 1, indent: 56),
+                  // Ganti sandi hanya relevan untuk owner (v1.0.1).
+                  if (auth.isOwner) ...[
+                    _menuTile(
+                      icon: Icons.lock_reset_rounded,
+                      color: AppColors.info,
+                      title: 'Ganti Sandi Owner',
+                      subtitle: 'Ubah sandi khusus owner saat masuk',
+                      onTap: _busy ? null : () => _runGuarded(_changePassword),
+                    ),
+                    const Divider(height: 1, indent: 56),
+                  ],
                   _menuTile(
                     icon: Icons.sync_rounded,
                     color: AppColors.primary,
                     title: 'Sinkronisasi Sekarang',
-                    subtitle: 'Kirim & tarik data ke/dari cloud',
+                    subtitle: auth.cloudEmail.isEmpty
+                        ? 'Cloud belum terhubung'
+                        : 'Cloud: ${auth.cloudEmail}',
                     trailing: _busy
                         ? const SizedBox(
                             width: 18,
@@ -405,8 +419,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _menuTile(
                     icon: Icons.logout_rounded,
                     color: AppColors.danger,
-                    title: 'Logout',
-                    subtitle: 'Keluar dari akun owner',
+                    title: 'Logout / Ganti Pengguna',
+                    subtitle: 'Kembali ke layar pilih nama',
                     onTap: _busy ? null : _confirmLogout,
                   ),
                 ],
