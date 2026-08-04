@@ -1,0 +1,327 @@
+# =============================================================
+# Workflow: Build APK otomatis setiap push ke branch "main".
+# Hasil APK dapat diunduh dari tab Actions -> workflow run ->
+# Artifacts -> "Pengeluaran-APK", plus diterbitkan ke GitHub
+# Releases (file PengeluaranNandaStore.apk).
+#
+# Secrets yang diperlukan (sama seperti repo aplikasi kasir):
+#   KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_PASSWORD,
+#   SUPABASE_URL, SUPABASE_ANON_KEY
+# =============================================================
+name: Flutter Build
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:   # memungkinkan build manual dari tab Actions
+
+jobs:
+  build:
+    name: Build APK Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # diperlukan agar bisa menerbitkan GitHub Release
+
+    steps:
+      # 1. Ambil source code
+      - name: Checkout kode
+        uses: actions/checkout@v4
+
+      # 2. Instal Flutter Stable terbaru (dengan cache agar cepat)
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Info versi Flutter
+        run: flutter --version
+
+      # 3. Buat file .env dari GitHub Secrets.
+      #    Jika secret belum diisi, aplikasi tetap ter-build dan
+      #    otomatis berjalan dalam mode offline penuh.
+      - name: Buat file .env
+        run: |
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
+          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+
+      # 4. Generate folder android/ agar selalu cocok dengan versi
+      #    Flutter terbaru (folder platform tidak disimpan di repo).
+      - name: Generate project Android
+        run: |
+          flutter create --platforms android --project-name pengeluaran --org id.pengeluaran .
+          rm -f test/widget_test.dart
+          # Label nama aplikasi yang tampil di launcher Android.
+          sed -i 's/android:label="pengeluaran"/android:label="Pengeluaran Nanda"/' \
+            android/app/src/main/AndroidManifest.xml
+          # Izin kamera untuk foto nota (image_picker).
+          sed -i 's|<manifest xmlns:android="http://schemas.android.com/apk/res/android">|<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.CAMERA"/>|' \
+            android/app/src/main/AndroidManifest.xml
+
+      # 4a. Pasang ikon aplikasi Pengeluaran (hijau dompet): ikon PNG
+      #     di branding/ disalin menggantikan ikon default Flutter.
+      - name: Pasang ikon Pengeluaran
+        run: |
+          set -e
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            cp -r "branding/mipmap-$d" android/app/src/main/res/
+          done
+          rm -rf android/app/src/main/res/mipmap-anydpi-v26
+          ls android/app/src/main/res | grep mipmap
+
+      # 4b. Kunci rilis PERMANEN — memakai keystore YANG SAMA dengan
+      #     aplikasi kasir (sudah ada di secrets repo ini), sehingga
+      #     ukuran & checksum-nya identik dan tetap diverifikasi.
+      - name: Siapkan kunci rilis (opsional)
+        env:
+          KB64: ${{ secrets.KEYSTORE_BASE64 }}
+          KSPASS: ${{ secrets.KEYSTORE_PASSWORD }}
+          KPASS: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -e
+          if [ -z "$KB64" ]; then
+            echo 'KEYSTORE_* belum diisi -> fallback tanda tangan debug.'
+            exit 0
+          fi
+          printf '%s' "$KB64" | tr -d '[:space:]' | base64 -d \
+            > android/app/kasirku-release.jks \
+            || { echo 'GAGAL: secret KEYSTORE_BASE64 mengandung karakter tidak valid.'; exit 1; }
+          UKURAN=$(stat -c%s android/app/kasirku-release.jks)
+          if [ "$UKURAN" != "2593" ]; then
+            echo "GAGAL: keystore hasil decode $UKURAN bytes (seharusnya 2593) -> base64 terpotong/kelebihan."
+            exit 1
+          fi
+          echo '20ac9dc7013d8819b814290c9f31c399d5fa80368af92373f35a7a8fa3f8da47  android/app/kasirku-release.jks' | sha256sum -c - \
+            || { echo 'GAGAL: checksum keystore tidak cocok -> isi secret KEYSTORE_BASE64 bukan file yang benar.'; exit 1; }
+          echo '[ok] keystore UTUH & sesuai (checksum cocok).'
+          if [ -z "$KPASS" ]; then KPASS="$KSPASS"; fi
+          printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=kasirku\nstoreFile=kasirku-release.jks\n' \
+            "$KSPASS" "$KPASS" > android/key.properties
+          echo 'Kunci rilis siap dipakai (update bisa menimpa versi lama).'
+
+      # 4c. Verifikasi kunci rilis bisa dibaca (gagal cepat dengan
+      #     pesan jelas, sama seperti workflow aplikasi kasir).
+      - name: Verifikasi kunci rilis bisa dibaca
+        env:
+          KSPASS: ${{ secrets.KEYSTORE_PASSWORD }}
+          KPASS: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ ! -s android/app/kasirku-release.jks ]; then
+            echo 'Tidak ada keystore -> lewati (APK memakai tanda tangan debug).'
+            exit 0
+          fi
+          set -e
+          keytool -list -keystore android/app/kasirku-release.jks \
+            -storepass "$KSPASS" -alias kasirku \
+            || { echo 'GAGAL: KEYSTORE_PASSWORD salah atau keystore rusak.'; exit 1; }
+          TMP=$(mktemp -d) && echo uji > "$TMP/uji.txt" && (cd "$TMP" && jar cf cek.jar uji.txt)
+          jarsigner -keystore android/app/kasirku-release.jks \
+            -storepass "$KSPASS" -keypass "$KPASS" "$TMP/cek.jar" kasirku \
+            || { echo 'GAGAL: KEY_PASSWORD tidak cocok dengan kunci di keystore.'; exit 1; }
+          echo '[ok] jarsigner sukses — keystore + kedua password BENAR.'
+
+      # 5. Aktifkan penandatanganan rilis di Gradle: konfigurasi
+      #    signing resmi ala docs Flutter disisipkan ke build.gradle
+      #    hasil generate — bila key.properties ada -> tanda tangan
+      #    release permanen; bila tidak -> debug (tetap bisa build).
+      - name: Aktifkan penandatanganan rilis di Gradle
+        run: |
+          python3 - <<'EOF'
+          from pathlib import Path
+          import sys
+
+          LOADER_KTS = (
+              'import java.util.Properties\n'
+              'import java.io.FileInputStream\n\n'
+              '// --- Kunci rilis permanen (disisipkan CI) ---\n'
+              'val keystoreProperties = Properties()\n'
+              'val keystorePropertiesFile = rootProject.file("key.properties")\n'
+              'if (keystorePropertiesFile.exists()) {\n'
+              '    keystoreProperties.load(FileInputStream(keystorePropertiesFile))\n'
+              '}\n'
+              '// --- akhir blok kunci rilis ---\n\n'
+          )
+          LOADER_GROOVY = (
+              '// --- Kunci rilis permanen (disisipkan CI) ---\n'
+              'def keystoreProperties = new Properties()\n'
+              'def keystorePropertiesFile = rootProject.file("key.properties")\n'
+              'if (keystorePropertiesFile.exists()) {\n'
+              '    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))\n'
+              '}\n'
+              '// --- akhir blok kunci rilis ---\n\n'
+          )
+          SIGNING_KTS = (
+              'android {\n'
+              '    signingConfigs {\n'
+              '        create("release") {\n'
+              '            keyAlias = keystoreProperties["keyAlias"] as String?\n'
+              '            keyPassword = keystoreProperties["keyPassword"] as String?\n'
+              '            storeFile = keystoreProperties["storeFile"]?.let { file(it) }\n'
+              '            storePassword = keystoreProperties["storePassword"] as String?\n'
+              '        }\n'
+              '    }\n'
+          )
+          SIGNING_GROOVY = (
+              'android {\n'
+              '    signingConfigs {\n'
+              '        release {\n'
+              '            keyAlias keystoreProperties["keyAlias"]\n'
+              '            keyPassword keystoreProperties["keyPassword"]\n'
+              '            storeFile keystoreProperties["storeFile"] ? file(keystoreProperties["storeFile"]) : null\n'
+              '            storePassword keystoreProperties["storePassword"]\n'
+              '        }\n'
+              '    }\n'
+          )
+
+          # (file, pola signingConfig debug, pengganti, loader, blok signing)
+          candidates = [
+              ('android/app/build.gradle.kts',
+               'signingConfig = signingConfigs.getByName("debug")',
+               'signingConfig = if (keystorePropertiesFile.exists()) signingConfigs.getByName("release") else signingConfigs.getByName("debug")',
+               LOADER_KTS, SIGNING_KTS),
+              ('android/app/build.gradle',
+               'signingConfig signingConfigs.debug',
+               'signingConfig keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug',
+               LOADER_GROOVY, SIGNING_GROOVY),
+          ]
+
+          for name, old, new, loader, signing in candidates:
+              p = Path(name)
+              if not p.exists():
+                  continue
+              text = p.read_text()
+              if 'Kunci rilis permanen (disisipkan CI)' in text:
+                  print(f'[info] {name} sudah dipatch, dilewati')
+                  continue
+              if old not in text:
+                  print(f'[warn] pola signingConfig debug tidak ditemukan di {name}')
+                  continue
+              # 1) sisipkan blok signingConfigs tepat setelah "android {" pertama
+              text = text.replace('android {', signing, 1)
+              # 2) arahkan build release ke kunci permanen
+              text = text.replace(old, new, 1)
+              # 3) muat key.properties di bagian paling atas file
+              text = loader + text
+              p.write_text(text)
+              print(f'[ok] penandatanganan disisipkan di {name}')
+              sys.exit(0)
+
+          print('GAGAL: tidak ada file gradle yang cocok untuk dipatch')
+          sys.exit(1)
+          EOF
+
+      # 5b. Terapkan compileSdk 36 pada app (menghindari konflik AAR
+      #     yang dikompilasi terhadap API 36).
+      - name: Terapkan compileSdk 36 di app
+        run: |
+          python3 - <<'EOF'
+          from pathlib import Path
+          for name in ('android/app/build.gradle.kts', 'android/app/build.gradle'):
+              p = Path(name)
+              if not p.exists():
+                  continue
+              text = p.read_text()
+              patterns = [
+                  ('compileSdk = flutter.compileSdkVersion', 'compileSdk = 36'),
+                  ('compileSdk flutter.compileSdkVersion', 'compileSdk 36'),
+              ]
+              new_text = text
+              for old, repl in patterns:
+                  new_text = new_text.replace(old, repl)
+              if new_text != text:
+                  p.write_text(new_text)
+                  print(f'[ok] compileSdk 36 diterapkan pada {name}')
+              else:
+                  print(f'[info] pola compileSdk tidak ditemukan di {name}')
+          EOF
+
+      # 5c. compileSdk 36 untuk SEMUA modul (app + plugin pub).
+      - name: Paksa compileSdk 36 untuk semua plugin
+        run: |
+          python3 - <<'EOF'
+          import os
+          from pathlib import Path
+          script = """// Dibuat otomatis oleh GitHub Actions (jangan disimpan di repo).
+          // Memaksa semua modul Android (app dan seluruh plugin) memakai
+          // compileSdk 36 agar cocok dengan AAR yang dikompilasi terhadap
+          // Android API 36.
+          gradle.projectsLoaded { g ->
+              g.rootProject.allprojects { prj ->
+                  prj.afterEvaluate {
+                      def androidExt = prj.extensions.findByName('android')
+                      if (androidExt != null) {
+                          androidExt.compileSdkVersion = 36
+                          prj.logger.lifecycle('pengeluaran-init: compileSdk 36 untuk ' + prj.path)
+                      }
+                  }
+              }
+          }
+          """
+          homes = []
+          gh = os.environ.get('GRADLE_USER_HOME')
+          if gh:
+              homes.append(Path(gh))
+          default_home = Path.home() / '.gradle'
+          if default_home not in homes:
+              homes.append(default_home)
+          for home in homes:
+              d = home / 'init.d'
+              d.mkdir(parents=True, exist_ok=True)
+              target = d / 'pengeluaran-compile-sdk.gradle'
+              target.write_text(script)
+              print(f'[ok] init script ditulis ke {target}')
+          EOF
+
+      # 5d. Pastikan platform Android API 36 tersedia di runner.
+      - name: Pastikan Android SDK Platform 36
+        run: |
+          yes | sdkmanager --install "platforms;android-36" >/dev/null 2>&1 || echo ">> sdkmanager dilewati (platform 36 umumnya sudah terpasang di runner)"
+
+      # 6. Instal dependency
+      - name: flutter pub get
+        run: flutter pub get
+
+      # 7. Analisis kode
+      - name: flutter analyze
+        run: flutter analyze --no-fatal-infos
+
+      # 8. Unit test
+      - name: flutter test
+        run: flutter test
+
+      # 9. Build APK release
+      - name: flutter build apk
+        run: flutter build apk --release
+
+      # 9b. Baca versi dari pubspec.yaml untuk penamaan rilis.
+      - name: Baca versi aplikasi
+        id: versi
+        run: |
+          V=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Versi aplikasi: $V"
+
+      # 9c. Terbitkan APK ke GitHub Releases.
+      - name: Rilis APK ke GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk \
+             build/app/outputs/flutter-apk/PengeluaranNandaStore.apk
+          TAG="v${{ steps.versi.outputs.version }}"
+          gh release create "$TAG" \
+            "build/app/outputs/flutter-apk/PengeluaranNandaStore.apk" \
+            --title "Pengeluaran Nanda Store $TAG" \
+            --notes "Pembaruan Pengeluaran Nanda Store $TAG. Pasang langsung menimpa versi lama — seluruh data tetap aman." \
+            --latest \
+          || gh release upload "$TAG" \
+            "build/app/outputs/flutter-apk/PengeluaranNandaStore.apk" --clobber
+          gh release edit "$TAG" --latest
+
+      # 10. Unggah APK sebagai artifact
+      - name: Upload artifact Pengeluaran-APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Pengeluaran-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30

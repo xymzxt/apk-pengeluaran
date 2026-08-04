@@ -1,0 +1,65 @@
+# =============================================================
+# Pengeluaran Nanda Store — Aplikasi Pencatat Pengeluaran Toko
+# Offline-first (SQLite) + sinkronisasi 2 arah Supabase.
+# v1.0.0: rilis perdana — sistem sama persis dengan aplikasi kasir
+# (Nanda Store), bedanya aplikasi ini khusus mencatat PENGELUARAN
+# (sesuai SPEC-PENGELUARAN.md, permintaan pemilik).
+# =============================================================
+name: pengeluaran
+description: Aplikasi pengeluaran toko Android offline-first dengan sinkronisasi Supabase.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter                # kalender & dialog Material berbahasa Indonesia
+  cupertino_icons: ^1.0.8
+
+  # --- State management (Riverpod, sama seperti aplikasi kasir) ---
+  flutter_riverpod: ^2.6.1
+
+  # --- Backend: Supabase (Auth, Database, Storage) ---
+  supabase_flutter: ^2.8.2
+
+  # --- Database lokal (offline-first cache) ---
+  sqflite: ^2.3.3+1
+  path: ^1.9.0
+  path_provider: ^2.1.4
+
+  # --- Konfigurasi & util ---
+  flutter_dotenv: ^5.2.1          # membaca .env (SUPABASE_URL / SUPABASE_ANON_KEY)
+  shared_preferences: ^2.3.2      # preferensi tema & jejak sinkronisasi
+  google_fonts: ^6.2.1            # font Poppins
+  intl: ^0.20.2                   # format Rupiah, tanggal, jam
+  connectivity_plus: ^6.1.0       # deteksi online/offline untuk sinkronisasi
+  uuid: ^4.5.1                    # id record lokal sesuai skema UUID
+
+  # --- Fitur utama (grafik, foto nota, export, share, backup) ---
+  fl_chart: ^0.69.2               # grafik pengeluaran (dashboard & laporan)
+  image_picker: ^1.1.2            # foto nota dari kamera/galeri
+  pdf: ^3.11.1                    # export PDF laporan
+  printing: ^5.13.4               # buka/share PDF hasil export
+  excel: ^4.0.6                   # export Excel laporan
+  share_plus: ^10.1.2             # berbagi file hasil export/backup
+  file_picker: ^8.1.2             # memilih file saat restore database
+  permission_handler: ^11.3.1     # izin kamera/penyimpanan
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    # File ini dibuat otomatis oleh GitHub Actions saat build,
+    # atau salin manual dari .env.example saat development lokal.
+    - .env
+    # Logo resmi Pengeluaran Nanda Store (v1.0.0) — splash, login,
+    # dan kartu Tentang Aplikasi.
+    - assets/logo/

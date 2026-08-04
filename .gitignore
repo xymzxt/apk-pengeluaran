@@ -1,0 +1,30 @@
+# --- Dart / Flutter ---
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+.metadata
+
+# --- Folder platform digenerate otomatis oleh GitHub Actions ---
+# (lihat .github/workflows/flutter-build.yml -> "flutter create")
+android/
+ios/
+web/
+windows/
+linux/
+macos/
+
+# --- IDE ---
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# --- Konfigurasi rahasia (WAJIB: jangan pernah di-commit) ---
+.env
+
+# --- Lain-lain ---
+*.log
+.DS_Store

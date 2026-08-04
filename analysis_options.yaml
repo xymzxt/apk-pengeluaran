@@ -1,0 +1,8 @@
+# Konfigurasi analisis statis (dijalankan oleh "flutter analyze"
+# pada workflow GitHub Actions).
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    prefer_single_quotes: true
+    always_declare_return_types: true
