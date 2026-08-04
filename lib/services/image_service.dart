@@ -42,7 +42,8 @@ class ImageService {
     }
   }
 
-  /// Path lokal nota: dokumen aplikasi/nota/<expenseId>.jpg.
+  /// Path lokal nota: dokumen aplikasi, folder `nota`, nama file
+  /// berupa id pengeluaran + `.jpg`.
   Future<String> _localPath(String expenseId) async {
     final dir = await getApplicationDocumentsDirectory();
     final notaDir = Directory(p.join(dir.path, 'nota'));

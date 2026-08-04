@@ -21,7 +21,6 @@ class CategoryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final categories = ref.watch(categoryListProvider);
 
     return Scaffold(

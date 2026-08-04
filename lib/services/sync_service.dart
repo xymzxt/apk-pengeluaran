@@ -19,6 +19,7 @@ import 'dart:io';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show FileOptions;
 
 import '../core/constants/app_constants.dart';
 import '../database/database_helper.dart';
@@ -77,9 +78,14 @@ class SyncService {
       pushed += await _pushCategories(db, uid);
       pushed += await _pushExpenses(db, uid);
 
+      // Capaian waktu pull dibaca SEKALI untuk semua tabel — kalau
+      // dibaca per-tabel, capaian yang baru ditulis tabel pertama
+      // langsung "menelan" data tabel berikutnya (bug fix v1.0.0).
+      final last = await _lastPull(AppConstants.prefLastPull);
       var pulled = 0;
-      pulled += await _pullCategories(db, uid);
-      pulled += await _pullExpenses(db, uid);
+      pulled += await _pullCategories(db, uid, last);
+      pulled += await _pullExpenses(db, uid, last);
+      await _setLastPull(AppConstants.prefLastPull, DateTime.now());
 
       return SyncSummary(pushed: pushed, pulled: pulled);
     } catch (_) {
@@ -211,23 +217,20 @@ class SyncService {
     await prefs.setString(key, value.toIso8601String());
   }
 
-  Future<int> _pullCategories(Database db, String uid) async {
+  Future<int> _pullCategories(Database db, String uid, String? last) async {
     final client = SupabaseService.instance.client;
     try {
       var query = client
           .from(AppConstants.tableCategories)
           .select()
           .eq('user_id', uid);
-      final last = await _lastPull(AppConstants.prefLastPull);
       if (last != null) query = query.gt('updated_at', last);
       final rows = await query;
       var applied = 0;
       for (final raw in rows) {
-        final remote =
-            CategoryModel.fromServer(raw as Map<String, dynamic>);
+        final remote = CategoryModel.fromServer(raw);
         applied += await _applyCategoryLUW(db, remote);
       }
-      await _setLastPull(AppConstants.prefLastPull, DateTime.now());
       return applied;
     } catch (_) {
       return 0;
@@ -253,23 +256,20 @@ class SyncService {
     return 1;
   }
 
-  Future<int> _pullExpenses(Database db, String uid) async {
+  Future<int> _pullExpenses(Database db, String uid, String? last) async {
     final client = SupabaseService.instance.client;
     try {
       var query = client
           .from(AppConstants.tableExpenses)
           .select()
           .eq('user_id', uid);
-      final last = await _lastPull(AppConstants.prefLastPull);
       if (last != null) query = query.gt('updated_at', last);
       final rows = await query;
       var applied = 0;
       for (final raw in rows) {
-        final remote =
-            ExpenseModel.fromServer(raw as Map<String, dynamic>);
+        final remote = ExpenseModel.fromServer(raw);
         applied += await _applyExpenseLUW(db, remote);
       }
-      await _setLastPull(AppConstants.prefLastPull, DateTime.now());
       return applied;
     } catch (_) {
       return 0;
