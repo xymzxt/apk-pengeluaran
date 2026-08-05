@@ -35,11 +35,13 @@ class FinalReportScreen extends ConsumerWidget {
       '${d.day.toString().padLeft(2, '0')}';
 
   /// Kolom-kolom yang ditampilkan sesuai periode terpilih.
+  /// Harian dibatasi 5 hari (v1.2.1, permintaan pemilik) agar label
+  /// tanggal di bawah diagram tidak berdempetan.
   static List<_Bucket> _bucketsFor(ReportPeriod p) {
     final now = DateTime.now();
     if (p == ReportPeriod.daily) {
       return [
-        for (var i = 13; i >= 0; i--)
+        for (var i = 4; i >= 0; i--)
           _b(_iso(now.subtract(Duration(days: i))),
               '${now.subtract(Duration(days: i)).day}/${now.subtract(Duration(days: i)).month}'),
       ];
