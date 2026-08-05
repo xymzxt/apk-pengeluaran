@@ -79,6 +79,27 @@ class SupabaseService {
   }
 
   // -----------------------------------------------------------
+  // Pemasukan harian dari aplikasi kasir (v1.1.0, permintaan
+  // pemilik) — Laporan Akhir. Memanggil fungsi SQL
+  // get_daily_income() yang dipasang sekali oleh pemilik lewat
+  // SQL-LAPORAN-AKHIR.sql (membaca tabel penjualan toko sendiri).
+  // -----------------------------------------------------------
+
+  /// Total penjualan per hari (rentang INKLUSIF 'yyyy-MM-dd').
+  /// Lempar exception saat fungsi belum dipasang / tak ada internet —
+  /// ditangani pemanggil (provider Laporan Akhir).
+  Future<List<Map<String, Object?>>> fetchDailyIncome(
+      String fromIso, String toIso) async {
+    final dynamic res = await client.rpc('get_daily_income', params: {
+      'p_from': fromIso,
+      'p_to': toIso,
+    });
+    return [
+      for (final r in (res as List)) Map<String, Object?>.from(r as Map),
+    ];
+  }
+
+  // -----------------------------------------------------------
   // Status login
   // -----------------------------------------------------------
 

@@ -61,7 +61,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             const AppLogo(size: 108),
             const SizedBox(height: 20),
             Text(
-              'Pengeluaran',
+              AppConstants.appName,
+              textAlign: TextAlign.center,
               style: theme.textTheme.headlineSmall
                   ?.copyWith(fontWeight: FontWeight.w700),
             ),

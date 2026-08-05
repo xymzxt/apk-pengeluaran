@@ -83,7 +83,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const AppLogo(size: 96),
                 const SizedBox(height: 16),
                 Text(
-                  'Pengeluaran',
+                  AppConstants.appName,
+                  textAlign: TextAlign.center,
                   style: theme.textTheme.headlineSmall
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),

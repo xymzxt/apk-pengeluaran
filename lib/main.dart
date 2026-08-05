@@ -1,4 +1,4 @@
-/// Titik masuk aplikasi Pengeluaran Nanda Store.
+/// Titik masuk aplikasi Pengeluaran Toko Rejeki.
 ///
 /// Urutan inisialisasi (sama persis dengan aplikasi kasir):
 /// 1. Muat file `.env` (opsional — tanpa file ini aplikasi offline penuh).

@@ -24,6 +24,7 @@ import '../../widgets/realtime_clock.dart';
 import '../../widgets/skeleton.dart';
 import '../../widgets/stat_card.dart';
 import '../expenses/expense_detail_screen.dart';
+import 'final_report_screen.dart';
 
 class ReportScreen extends ConsumerStatefulWidget {
   const ReportScreen({super.key});
@@ -73,11 +74,44 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     final selection = ref.watch(reportSelectionProvider);
     final dataAsync = ref.watch(reportDataProvider);
 
-    return Scaffold(
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
+    // v1.1.0 (permintaan pemilik): tab kedua "Laporan Akhir" —
+    // pemasukan (dari aplikasi kasir) - pengeluaran = laba bersih.
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        body: Column(
           children: [
+            SafeArea(
+              bottom: false,
+              child: TabBar(
+                dividerColor: Colors.transparent,
+                tabs: const [
+                  Tab(text: 'Pengeluaran'),
+                  Tab(text: 'Laporan Akhir'),
+                ],
+              ),
+            ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _pengeluaranTab(theme, selection, dataAsync),
+                  const FinalReportScreen(),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Tab pertama: laporan pengeluaran (konten asli halaman ini).
+  Widget _pengeluaranTab(ThemeData theme, ReportSelection selection,
+      AsyncValue<ReportData> dataAsync) {
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
+        children: [
             Text('Laporan Pengeluaran',
                 style: theme.textTheme.titleLarge
                     ?.copyWith(fontWeight: FontWeight.w700)),
@@ -282,8 +316,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }
 

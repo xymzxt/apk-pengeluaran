@@ -1,16 +1,16 @@
-/// Konstanta global aplikasi Pengeluaran Nanda Store (v1.0.0).
+/// Konstanta global aplikasi Pengeluaran Toko Rejeki (v1.0.0).
 library;
 
 class AppConstants {
   AppConstants._();
 
   // --- Identitas aplikasi ---
-  static const String appName = 'Pengeluaran Nanda Store';
+  static const String appName = 'Pengeluaran Toko Rejeki';
   static const String appTagline = 'Catat setiap rupiah yang keluar';
   // v1.0.1 (permintaan pemilik): login diubah ke gaya aplikasi kasir
   // — pilih NAMA (owner pakai sandi khusus, keluarga tap nama saja);
   // sinkron cloud ditangani akun robot perangkat di belakang layar.
-  static const String appVersion = '1.0.1';
+  static const String appVersion = '1.1.0';
 
   // --- Kunci SharedPreferences ---
   static const String prefThemeMode = 'theme_mode';
@@ -18,12 +18,16 @@ class AppConstants {
   static const String prefLastPull = 'exp_last_pull';
   // v1.0.1: sesi login lokal (id pengguna yang sedang masuk).
   static const String prefSessionUser = 'session_user';
+  // v1.1.0: capaian terakhir tarik pemasukan harian (Laporan Akhir).
+  static const String prefLastIncomePull = 'exp_last_income_pull';
 
   // --- Database lokal ---
   static const String dbName = 'pengeluaran.db';
   // v1: skema awal; v2 (rilis 1.0.1): tabel app_users untuk login
-  // gaya kasir (permintaan pemilik).
-  static const int dbVersion = 2;
+  // gaya kasir (permintaan pemilik); v3 (rilis 1.1.0): tabel
+  // income_daily — cache pemasukan harian dari aplikasi kasir
+  // (permintaan pemilik, untuk Laporan Akhir).
+  static const int dbVersion = 3;
 
   // --- Pengguna bawaan (v1.0.1, permintaan pemilik) ---
   // Sama dengan anggota aplikasi kasir: owner pakai sandi khusus,

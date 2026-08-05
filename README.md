@@ -1,9 +1,9 @@
-# Pengeluaran Nanda Store — Aplikasi Pencatat Pengeluaran Toko
+# Pengeluaran Toko Rejeki — Aplikasi Pencatat Pengeluaran Toko
 
 Aplikasi Android berbasis **Flutter** untuk mencatat seluruh
-pengeluaran toko rumahan — offline-first (SQLite), sinkronisasi dua
+pengeluaran Toko Rejeki — offline-first (SQLite), sinkronisasi dua
 arah ke **Supabase**, Material 3 hijau-putih ala Apple, font Poppins.
-Satu rasa dengan aplikasi kasir **Nanda Store**, bedanya aplikasi ini
+Satu rasa dengan aplikasi kasir Toko Rejeki, bedanya aplikasi ini
 khusus untuk **uang keluar**.
 
 ## Fitur
@@ -27,6 +27,12 @@ khusus untuk **uang keluar**.
 - 📄 **Laporan** harian/mingguan/bulanan/tahunan: total, jumlah
   transaksi, rata-rata, kategori terbanyak, terbesar, rincian per
   kategori + **Export PDF / Excel / Share (TXT)**
+- 📈 **Laporan Akhir**: **Pemasukan** (ditarik otomatis dari aplikasi
+  kasir lewat Supabase) vs **Pengeluaran** = **Laba Bersih** per hari /
+  bulan / tahun, lengkap dengan diagram perbandingan + tabel rincian.
+  Pemasukan dicache lokal agar tetap terbaca offline. Perlu menjalankan
+  **SQL-LAPORAN-AKHIR.sql sekali** di dashboard Supabase (SQL Editor →
+  Run) agar pemasukan hidup
 - 🖼️ **Foto nota** tersimpan di Supabase Storage (privat per pemilik)
   dan tetap terlihat offline dari file lokal
 - ✈️ **Offline-first**: semua fitur jalan tanpa internet; sinkron
@@ -75,7 +81,7 @@ khusus untuk **uang keluar**.
 Repo ini dibuild otomatis oleh `.github/workflows/flutter-build.yml`
 tiap push ke `main`:
 
-- Artifact: **`Pengeluaran-APK`**; Release: `PengeluaranNandaStore.apk`
+- Artifact: **`Pengeluaran-APK`**; Release: `PengeluaranTokoRejeki.apk`
 - Secrets yang diperlukan (sama nilainya dengan repo aplikasi kasir):
   `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_PASSWORD`,
   `SUPABASE_URL`, `SUPABASE_ANON_KEY`,

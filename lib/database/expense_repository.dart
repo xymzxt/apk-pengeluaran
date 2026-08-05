@@ -6,6 +6,7 @@
 /// sama persis seperti pola aplikasi kasir.
 library;
 
+import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
 import '../database/database_helper.dart';
@@ -369,6 +370,48 @@ class ExpenseRepository {
     return {
       for (final row in rows)
         row['date'] as String: ((row['total'] as num?) ?? 0).toDouble(),
+    };
+  }
+
+  // ------------------------------------------------------------------
+  // PEMASUKAN harian dari aplikasi kasir — Laporan Akhir
+  // (v1.1.0, permintaan pemilik)
+  // ------------------------------------------------------------------
+
+  /// Simpan/refresh cache pemasukan harian (hasil fungsi Supabase
+  /// get_daily_income pada tabel penjualan aplikasi kasir).
+  Future<void> upsertIncomeDays(List<Map<String, Object?>> rows) async {
+    final db = await DatabaseHelper.instance.database;
+    final now = DateTime.now().toIso8601String();
+    final batch = db.batch();
+    for (final row in rows) {
+      final day = row['day']?.toString() ?? '';
+      if (day.isEmpty) continue;
+      batch.insert(
+        'income_daily',
+        {
+          'day': day,
+          'total': ((row['total'] as num?) ?? 0).toDouble(),
+          'updated_at': now,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+    await batch.commit(noResult: true);
+  }
+
+  /// Peta 'yyyy-MM-dd' -> total pemasukan untuk rentang INKLUSIF
+  /// [fromIso]..[toIso] (ikut batas hari terakhir).
+  Future<Map<String, double>> incomeDailyMap(
+      String fromIso, String toIso) async {
+    final db = await DatabaseHelper.instance.database;
+    final rows = await db.rawQuery('''
+      SELECT day, total FROM income_daily
+      WHERE day >= ? AND day <= ? ORDER BY day
+    ''', [fromIso, toIso]);
+    return {
+      for (final row in rows)
+        row['day'] as String: ((row['total'] as num?) ?? 0).toDouble(),
     };
   }
 }

@@ -1,14 +1,14 @@
 # =============================================================
-# Pengeluaran Nanda Store — Aplikasi Pencatat Pengeluaran Toko
+# Pengeluaran Toko Rejeki — Aplikasi Pencatat Pengeluaran Toko
 # Offline-first (SQLite) + sinkronisasi 2 arah Supabase.
-# v1.0.0: rilis perdana — sistem sama persis dengan aplikasi kasir
-# (Nanda Store), bedanya aplikasi ini khusus mencatat PENGELUARAN
+# v1.0.0: rilis perdana — sistem sama persis dengan aplikasi kasir,
+# bedanya aplikasi ini khusus mencatat PENGELUARAN
 # (sesuai SPEC-PENGELUARAN.md, permintaan pemilik).
 # =============================================================
 name: pengeluaran
 description: Aplikasi pengeluaran toko Android offline-first dengan sinkronisasi Supabase.
 publish_to: 'none'
-version: 1.0.2+3
+version: 1.1.0+4
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -61,6 +61,6 @@ flutter:
     # File ini dibuat otomatis oleh GitHub Actions saat build,
     # atau salin manual dari .env.example saat development lokal.
     - .env
-    # Logo resmi Pengeluaran Nanda Store (v1.0.0) — splash, login,
-    # dan kartu Tentang Aplikasi.
+    # Logo resmi Toko Rejeki (v1.0.2, permintaan pemilik) —
+    # splash, login, dan kartu Tentang Aplikasi.
     - assets/logo/

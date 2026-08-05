@@ -36,16 +36,35 @@ class DatabaseHelper {
     );
   }
 
-  /// Migrasi antar versi (v1.0.1 tambah tabel app_users).
+  /// Migrasi antar versi (v1.0.1 tambah tabel app_users; v1.1.0
+  /// tambah tabel income_daily untuk Laporan Akhir).
   Future<void> _upgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await _createAppUsers(db);
+    }
+    if (oldVersion < 3) {
+      await _createIncomeDaily(db);
     }
   }
 
   Future<void> _create(Database db, int version) async {
     await _createAppUsers(db);
     await _createCoreTables(db);
+    await _createIncomeDaily(db);
+  }
+
+  /// Cache total PEMASUKAN per hari hasil tarik dari aplikasi kasir
+  /// (v1.1.0, permintaan pemilik) — dipakai Laporan Akhir agar tetap
+  /// bisa dibaca saat offline. Sumber: fungsi Supabase
+  /// get_daily_income() yang membaca tabel penjualan aplikasi kasir.
+  Future<void> _createIncomeDaily(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS income_daily (
+        day        TEXT PRIMARY KEY,
+        total      REAL NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL
+      )
+    ''');
   }
 
   /// Tabel pengguna LOKAL untuk login gaya kasir (v1.0.1, permintaan

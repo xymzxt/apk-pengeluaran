@@ -2,7 +2,7 @@
 # Workflow: Build APK otomatis setiap push ke branch "main".
 # Hasil APK dapat diunduh dari tab Actions -> workflow run ->
 # Artifacts -> "Pengeluaran-APK", plus diterbitkan ke GitHub
-# Releases (file PengeluaranNandaStore.apk).
+# Releases (file PengeluaranTokoRejeki.apk).
 #
 # Secrets yang diperlukan (sama seperti repo aplikasi kasir):
 #   KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_PASSWORD,
@@ -56,8 +56,10 @@ jobs:
         run: |
           flutter create --platforms android --project-name pengeluaran --org id.pengeluaran .
           rm -f test/widget_test.dart
-          # Label nama aplikasi yang tampil di launcher Android.
-          sed -i 's/android:label="pengeluaran"/android:label="Pengeluaran Nanda"/' \
+          # Label nama aplikasi yang tampil di launcher Android
+          # (v1.0.2, permintaan pemilik: ganti nama jadi Pengeluaran
+          #  Toko Rejeki beserta logo barunya).
+          sed -i 's/android:label="pengeluaran"/android:label="Pengeluaran Toko Rejeki"/' \
             android/app/src/main/AndroidManifest.xml
           # Izin INTERNET + NETWORK_STATE wajib di build release
           # (v1.0.2, permintaan pemilik: tanpa izin ini APK
@@ -316,15 +318,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cp build/app/outputs/flutter-apk/app-release.apk \
-             build/app/outputs/flutter-apk/PengeluaranNandaStore.apk
+             build/app/outputs/flutter-apk/PengeluaranTokoRejeki.apk
           TAG="v${{ steps.versi.outputs.version }}"
           gh release create "$TAG" \
-            "build/app/outputs/flutter-apk/PengeluaranNandaStore.apk" \
-            --title "Pengeluaran Nanda Store $TAG" \
-            --notes "Pembaruan Pengeluaran Nanda Store $TAG. Pasang langsung menimpa versi lama — seluruh data tetap aman." \
+            "build/app/outputs/flutter-apk/PengeluaranTokoRejeki.apk" \
+            --title "Pengeluaran Toko Rejeki $TAG" \
+            --notes "Pembaruan Pengeluaran Toko Rejeki $TAG. Pasang langsung menimpa versi lama — seluruh data tetap aman." \
             --latest \
           || gh release upload "$TAG" \
-            "build/app/outputs/flutter-apk/PengeluaranNandaStore.apk" --clobber
+            "build/app/outputs/flutter-apk/PengeluaranTokoRejeki.apk" --clobber
           gh release edit "$TAG" --latest
 
       # 10. Unggah APK sebagai artifact
