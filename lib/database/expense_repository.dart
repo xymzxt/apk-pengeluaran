@@ -9,10 +9,12 @@ library;
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
+import '../core/constants/app_constants.dart';
 import '../database/database_helper.dart';
 import '../models/app_user_model.dart';
 import '../models/category_model.dart';
 import '../models/expense_model.dart';
+import '../utils/hash.dart';
 import '../utils/period.dart';
 
 class ExpenseRepository {
@@ -413,5 +415,73 @@ class ExpenseRepository {
       for (final row in rows)
         row['day'] as String: ((row['total'] as num?) ?? 0).toDouble(),
     };
+  }
+
+  // ------------------------------------------------------------------
+  // Anggota HASIL TARIK dari aplikasi kasir — store_members (v1.3.0,
+  // permintaan pemilik: sinkronkan daftar nama antar aplikasi)
+  // ------------------------------------------------------------------
+
+  /// Terapkan satu anggota dari cloud kasir. password_hash LOKAL
+  /// TIDAK ikut ditimpa — sandi owner aplikasi ini tetap miliknya
+  /// sendiri; anggota owner baru dapat sandi bawaan.
+  Future<void> upsertMemberFromCloud({
+    required String id,
+    required String name,
+    required String role,
+    required bool deleted,
+  }) async {
+    final db = await DatabaseHelper.instance.database;
+    final now = DateTime.now().toIso8601String();
+    final existing = await db.query('app_users',
+        where: 'id = ?', whereArgs: [id], limit: 1);
+    if (existing.isEmpty) {
+      await db.insert('app_users', {
+        'id': id,
+        'name': name,
+        'role': role,
+        'password_hash': role == 'owner'
+            ? AppHash.of(AppConstants.defaultOwnerPassword)
+            : null,
+        'is_deleted': deleted ? 1 : 0,
+        'created_at': now,
+        'updated_at': now,
+      });
+    } else {
+      await db.update(
+        'app_users',
+        {
+          'name': name,
+          'role': role,
+          'is_deleted': deleted ? 1 : 0,
+          'updated_at': now,
+        },
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    }
+  }
+
+  /// Cermin penuh: anggota lokal yang tidak ada lagi di cloud kasir
+  /// ditandai terhapus — KECUALI owner lokal (pintu utama aplikasi
+  /// ini tidak pernah dikunci sepihak saat cloud sempat tidak
+  /// mengirimkan baris owner).
+  Future<int> deleteMembersMissingFrom(Set<String> cloudIds) async {
+    final db = await DatabaseHelper.instance.database;
+    final rows = await db.query('app_users', where: 'is_deleted = 0');
+    final now = DateTime.now().toIso8601String();
+    var count = 0;
+    for (final r in rows) {
+      final id = r['id'] as String? ?? '';
+      final role = r['role'] as String? ?? '';
+      if (id.isEmpty || cloudIds.contains(id) || role == 'owner') {
+        continue;
+      }
+      await db.update('app_users',
+          {'is_deleted': 1, 'updated_at': now},
+          where: 'id = ?', whereArgs: [id]);
+      count++;
+    }
+    return count;
   }
 }

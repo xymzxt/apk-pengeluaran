@@ -13,6 +13,10 @@ khusus untuk **uang keluar**.
   keluarga (Kasir, Donny, Sonny, Yono) **tap nama saja**; tetap masuk
   sampai Logout/Ganti Pengguna. Sinkron cloud otomatis lewat akun
   robot perangkat di belakang layar (tanpa menyuruh pengguna apa pun)
+- 👥 **Daftar nama mengikuti aplikasi kasir** (`store_members`):
+  tambah/ubah/hapus anggota cukup dari **Manajemen Pengguna di aplikasi
+  kasir** — layar login aplikasi ini menyesuaikan otomatis setiap
+  sinkron; sandi owner aplikasi ini tetap terpisah dan aman
 - 📊 **Dashboard**: total hari ini / minggu ini / bulan ini / tahun
   ini, grafik per bulan, pengeluaran terakhir, terbesar bulan ini,
   jumlah transaksi

@@ -17,12 +17,14 @@ library;
 
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show FileOptions;
 
 import '../core/constants/app_constants.dart';
 import '../database/database_helper.dart';
+import '../database/expense_repository.dart';
 import '../models/category_model.dart';
 import '../models/expense_model.dart';
 import 'image_service.dart';
@@ -86,6 +88,10 @@ class SyncService {
       var pulled = 0;
       pulled += await _pullCategories(db, uid, last);
       pulled += await _pullExpenses(db, uid, last);
+      // v1.3.0 (permintaan pemilik): cerminkan juga daftar nama
+      // anggota dari aplikasi kasir (tabel store_members) — tambah,
+      // ubah, atau hapus nama cukup dilakukan di aplikasi kasir.
+      pulled += await _pullMembers(db);
       await _setLastPull(AppConstants.prefLastPull, DateTime.now());
 
       return SyncSummary(pushed: pushed, pulled: pulled);
@@ -115,6 +121,63 @@ class SyncService {
     } catch (_) {
       return 0;
     }
+  }
+
+  /// Tarik daftar anggota dari tabel `store_members` milik aplikasi
+  /// kasir lalu CERMIN ke `app_users` lokal (v1.3.0, permintaan
+  /// pemilik: "kenapa tidak sinkron?" — kini daftar nama mengikuti
+  /// Manajemen Pengguna di aplikasi kasir).
+  ///
+  /// Satu arah saja (pull): sandi owner LOKAL aplikasi ini tidak
+  /// pernah ditimpa, dan menambah/menghapus anggota tetap dilakukan
+  /// dari aplikasi kasir seperti biasa.
+  Future<int> _pullMembers(Database db) async {
+    final supa = SupabaseService.instance;
+    try {
+      final List<dynamic> rows = await supa.client
+          .from('store_members')
+          .select('id, name, role, is_active, deleted_at');
+      if (rows.isEmpty) return 0;
+
+      var count = 0;
+      final cloudIds = <String>{};
+      final repo = ExpenseRepository.instance;
+      for (final raw in rows) {
+        final row = Map<String, Object?>.from(raw as Map);
+        final id = row['id']?.toString() ?? '';
+        if (id.isEmpty) continue;
+        cloudIds.add(id);
+        final rawRole = row['role']?.toString() ?? '';
+        final role =
+            (rawRole == 'owner' || rawRole == 'admin') ? 'owner' : 'keluarga';
+        final deleted =
+            row['deleted_at'] != null || row['is_active'] == false;
+        final name = row['name']?.toString().trim() ?? '';
+        if (name.isEmpty) continue;
+        await repo.upsertMemberFromCloud(
+            id: id, name: name, role: role, deleted: deleted);
+        count++;
+      }
+      // Cermin penuh: nama yang dihapus di aplikasi kasir ikut
+      // hilang di sini — KECUALI owner lokal (pintu utama aplikasi
+      // ini tidak pernah dikunci sepihak).
+      count += await repo.deleteMembersMissingFrom(cloudIds);
+      return count;
+    } catch (e) {
+      debugPrint('Tarik anggota (store_members) gagal: $e');
+      return 0;
+    }
+  }
+
+  /// Segarkan HANYA daftar nama (dipakai layar login, v1.3.0) agar
+  /// nama baru dari aplikasi kasir langsung muncul tanpa harus
+  /// masuk aplikasi lebih dulu.
+  Future<void> pullMembersNow() async {
+    final supa = SupabaseService.instance;
+    if (!supa.isReady) return;
+    if (!await supa.ensureCloudSignIn()) return;
+    final db = await DatabaseHelper.instance.database;
+    await _pullMembers(db);
   }
 
   Future<int> _pushCategories(Database db, String uid) async {

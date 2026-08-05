@@ -7,6 +7,8 @@
 ///   perangkat — pengguna tidak perlu tahu apa-apa soal itu.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -15,6 +17,7 @@ import '../../core/theme/app_colors.dart';
 import '../../database/expense_repository.dart';
 import '../../models/app_user_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/sync_service.dart';
 import '../../utils/page_transitions.dart';
 import '../../widgets/app_logo.dart';
 import '../../widgets/confirm_dialog.dart';
@@ -36,6 +39,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void initState() {
     super.initState();
     _loadUsers();
+    // v1.3.0 (permintaan pemilik): segarkan daftar nama dari aplikasi
+    // kasir — anggota yang ditambah/dihapus di Manajemen Pengguna
+    // kasir langsung ikut muncul di layar ini tanpa perlu login dulu.
+    unawaited(SyncService.instance
+        .pullMembersNow()
+        .then((_) => _loadUsers()));
   }
 
   Future<void> _loadUsers() async {
