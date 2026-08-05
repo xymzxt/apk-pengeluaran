@@ -87,6 +87,11 @@ class ReportSelectionController extends StateNotifier<ReportSelection> {
   void setPeriod(ReportPeriod period) =>
       state = state.copyWith(period: period);
 
+  /// Lompat ke tanggal tertentu (v1.2.0 — label periode di layar
+  /// laporan bisa diketuk untuk membuka kalender, seperti aplikasi
+  /// kasir; kalender 5 tahun ke belakang s.d. 6 tahun ke depan).
+  void jumpTo(DateTime date) => state = state.copyWith(anchor: date);
+
   /// Geser periode ke depan/belakang (panah < > di layar laporan).
   void shift(int step) {
     final a = state.anchor;

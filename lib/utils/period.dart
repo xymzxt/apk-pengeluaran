@@ -34,11 +34,13 @@ class DateRange {
   }
 }
 
-/// Batas kalender pemilih tanggal (dibekukan 2021 seperti aplikasi
-/// kasir; batas atas mengikuti tahun berjalan + 5).
-DateTime reportCalendarStart() => DateTime(2021);
+/// Batas kalender pemilih tanggal (v1.2.0, permintaan pemilik —
+/// "seperti aplikasi kasir"): 5 tahun ke belakang s.d. 6 tahun ke
+/// depan; keduanya dinamis mengikuti tahun berjalan.
+DateTime reportCalendarStart() => DateTime(DateTime.now().year - 5);
 
-DateTime reportCalendarEnd() => DateTime(DateTime.now().year + 5, 12, 31);
+DateTime reportCalendarEnd() =>
+    DateTime(DateTime.now().year + 6, 12, 31);
 
 /// Menghitung rentang tanggal untuk [period] berdasarkan [anchor].
 DateRange rangeFor(ReportPeriod period, DateTime anchor) {

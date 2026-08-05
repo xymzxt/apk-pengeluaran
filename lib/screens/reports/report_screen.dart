@@ -105,6 +105,28 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     );
   }
 
+  /// Ketuk label periode -> buka kalender (v1.2.0, permintaan pemilik,
+  /// seperti aplikasi kasir): 5 tahun ke belakang s.d. 6 tahun ke
+  /// depan; laporan langsung melompat ke tanggal terpilih.
+  Future<void> _pickAnchor() async {
+    final selection = ref.read(reportSelectionProvider);
+    final start = reportCalendarStart();
+    final end = reportCalendarEnd();
+    var initial = selection.anchor;
+    if (initial.isBefore(start)) initial = start;
+    if (initial.isAfter(end)) initial = end;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: start,
+      lastDate: end,
+      helpText: 'Pilih Tanggal Laporan',
+    );
+    if (picked != null) {
+      ref.read(reportSelectionProvider.notifier).jumpTo(picked);
+    }
+  }
+
   /// Tab pertama: laporan pengeluaran (konten asli halaman ini).
   Widget _pengeluaranTab(ThemeData theme, ReportSelection selection,
       AsyncValue<ReportData> dataAsync) {
@@ -151,12 +173,32 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                       .shift(-1),
                 ),
                 Expanded(
-                  child: Text(
-                    rangeFor(selection.period, selection.anchor)
-                        .describe(),
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w600),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: _pickAnchor,
+                    child: Tooltip(
+                      message: 'Ketuk untuk memilih tanggal',
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.calendar_month_outlined,
+                              size: 16),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              rangeFor(selection.period,
+                                      selection.anchor)
+                                  .describe(),
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.titleSmall
+                                  ?.copyWith(
+                                      fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
                 IconButton(

@@ -33,6 +33,13 @@ khusus untuk **uang keluar**.
   Pemasukan dicache lokal agar tetap terbaca offline. Perlu menjalankan
   **SQL-LAPORAN-AKHIR.sql sekali** di dashboard Supabase (SQL Editor →
   Run) agar pemasukan hidup
+- 🗓️ **Kalender bersahabat**: pilih tanggal bebas melompat antara
+  5 tahun ke belakang s.d. 6 tahun ke depan (di form pengeluaran &
+  label periode laporan cukup diketuk) — sama seperti aplikasi kasir
+- 🔄 **Update dari dalam aplikasi** (sama seperti aplikasi kasir):
+  saat dibuka, aplikasi mengecek GitHub Releases `xymzxt/apk-pengeluaran`;
+  bila ada versi baru muncul layar **"Update Sekarang"** — APK terunduh
+  & terpasang menimpa versi lama tanpa uninstall dan data tetap aman
 - 🖼️ **Foto nota** tersimpan di Supabase Storage (privat per pemilik)
   dan tetap terlihat offline dari file lokal
 - ✈️ **Offline-first**: semua fitur jalan tanpa internet; sinkron

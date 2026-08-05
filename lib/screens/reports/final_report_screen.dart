@@ -127,15 +127,15 @@ class FinalReportScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            const RealtimeClock(),
             const SizedBox(height: 4),
+            const RealtimeClock(),
+            const SizedBox(height: 2),
             Text(
-              'Laba Bersih = Pemasukan dari toko dikurangi Pengeluaran.',
+              'Laba Bersih = Pemasukan − Pengeluaran',
               style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.hintColor),
+                  ?.copyWith(color: theme.hintColor, fontSize: 11),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
 
             // --- Pemilih periode ---
             SingleChildScrollView(
@@ -158,7 +158,7 @@ class FinalReportScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
             // --- Banner info (bila perlu tindakan / offline) ---
             if (state.banner != FinalBanner.none)
@@ -169,7 +169,7 @@ class FinalReportScreen extends ConsumerWidget {
             Card(
               margin: EdgeInsets.zero,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   children: [
                     Row(
@@ -198,14 +198,14 @@ class FinalReportScreen extends ConsumerWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 8),
                     _metricRow(theme,
                         title: 'Pemasukan',
                         subtitle: 'Penjualan dari aplikasi kasir',
                         value: income,
                         icon: Icons.south_west_rounded,
                         color: AppColors.primary),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 6),
                     _metricRow(theme,
                         title: 'Pengeluaran',
                         subtitle: 'Catatan di aplikasi ini',
@@ -213,7 +213,7 @@ class FinalReportScreen extends ConsumerWidget {
                         icon: Icons.north_east_rounded,
                         color: AppColors.danger),
                     const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
+                      padding: EdgeInsets.symmetric(vertical: 8),
                       child: Divider(height: 1),
                     ),
                     _metricRow(theme,
@@ -231,21 +231,19 @@ class FinalReportScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
             // --- Diagram perbandingan ---
             _chartCard(theme, state, buckets),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
             // --- Tabel rincian ---
             _detailCard(theme, state, buckets),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
 
             Text(
-              'Pemasukan = total penjualan dari aplikasi kasir '
-              '(transaksi selesai; yang dibatalkan tidak dihitung). '
-              'Tarik layar ke bawah atau tekan ikon segarkan untuk '
-              'memperbarui.',
+              'Pemasukan = penjualan aplikasi kasir (void tak dihitung). '
+              'Tarik layar untuk memperbarui.',
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.hintColor, fontSize: 11),
             ),
@@ -306,8 +304,8 @@ class FinalReportScreen extends ConsumerWidget {
     return Row(
       children: [
         Container(
-          width: big ? 46 : 40,
-          height: big ? 46 : 40,
+          width: big ? 42 : 38,
+          height: big ? 42 : 38,
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.14),
             borderRadius: BorderRadius.circular(12),
@@ -387,7 +385,7 @@ class FinalReportScreen extends ConsumerWidget {
             Text('Diagram ${state.period.label}',
                 style: theme.textTheme.titleSmall
                     ?.copyWith(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Row(
               children: [
                 _legendDot(theme, AppColors.primary, 'Pemasukan'),
@@ -397,7 +395,7 @@ class FinalReportScreen extends ConsumerWidget {
                 _legendDot(theme, AppColors.info, 'Laba Bersih'),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
             SizedBox(
               height: 190,
               child: !hasData

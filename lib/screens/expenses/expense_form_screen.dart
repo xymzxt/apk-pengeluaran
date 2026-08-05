@@ -21,6 +21,7 @@ import '../../services/supabase_service.dart';
 import '../../services/sync_service.dart';
 import '../../utils/currency_input.dart';
 import '../../utils/formatters.dart';
+import '../../utils/period.dart';
 import '../../utils/validators.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/realtime_clock.dart';
@@ -88,11 +89,18 @@ class _ExpenseFormState extends ConsumerState<ExpenseFormScreen> {
   // PICKERS
   // -----------------------------------------------------------
   Future<void> _pickDate() async {
+    // Rentang kalender mengikuti aturan pemilik (v1.2.0): 5 tahun ke
+    // belakang s.d. 6 tahun ke depan — seperti aplikasi kasir.
+    final start = reportCalendarStart();
+    final end = reportCalendarEnd();
+    var initial = _date;
+    if (initial.isBefore(start)) initial = start;
+    if (initial.isAfter(end)) initial = end;
     final picked = await showDatePicker(
       context: context,
-      initialDate: _date,
-      firstDate: DateTime(2021),
-      lastDate: DateTime(DateTime.now().year + 5, 12, 31),
+      initialDate: initial,
+      firstDate: start,
+      lastDate: end,
     );
     if (picked != null) setState(() => _date = picked);
   }

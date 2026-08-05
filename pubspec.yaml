@@ -8,7 +8,7 @@
 name: pengeluaran
 description: Aplikasi pengeluaran toko Android offline-first dengan sinkronisasi Supabase.
 publish_to: 'none'
-version: 1.1.0+4
+version: 1.2.0+5
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -39,6 +39,7 @@ dependencies:
   connectivity_plus: ^6.1.0       # deteksi online/offline untuk sinkronisasi
   uuid: ^4.5.1                    # id record lokal sesuai skema UUID
   crypto: ^3.0.5                  # hash sandi owner lokal (login gaya kasir v1.0.1)
+  open_filex: ^4.4.0              # membuka pemasang APK (update dari dalam aplikasi v1.2.0, permintaan pemilik — sama seperti aplikasi kasir)
 
   # --- Fitur utama (grafik, foto nota, export, share, backup) ---
   fl_chart: ^0.69.2               # grafik pengeluaran (dashboard & laporan)

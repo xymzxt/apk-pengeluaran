@@ -64,8 +64,10 @@ jobs:
           # Izin INTERNET + NETWORK_STATE wajib di build release
           # (v1.0.2, permintaan pemilik: tanpa izin ini APK
           #  gagal konek ke Supabase — error "Failed host lookup"),
-          # plus CAMERA untuk foto nota (image_picker).
-          sed -i 's|<manifest xmlns:android="http://schemas.android.com/apk/res/android">|<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>\n    <uses-permission android:name="android.permission.CAMERA"/>|' \
+          # CAMERA untuk foto nota (image_picker), dan
+          # REQUEST_INSTALL_PACKAGES untuk update dari dalam aplikasi
+          # (v1.2.0, permintaan pemilik — sama seperti aplikasi kasir).
+          sed -i 's|<manifest xmlns:android="http://schemas.android.com/apk/res/android">|<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>\n    <uses-permission android:name="android.permission.CAMERA"/>\n    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>|' \
             android/app/src/main/AndroidManifest.xml
 
       # 4a. Pasang ikon aplikasi Pengeluaran (logo Toko Rejeki —
