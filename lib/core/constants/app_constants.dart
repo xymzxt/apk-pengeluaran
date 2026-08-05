@@ -10,7 +10,7 @@ class AppConstants {
   // v1.0.1 (permintaan pemilik): login diubah ke gaya aplikasi kasir
   // — pilih NAMA (owner pakai sandi khusus, keluarga tap nama saja);
   // sinkron cloud ditangani akun robot perangkat di belakang layar.
-  static const String appVersion = '1.2.1';
+  static const String appVersion = '1.2.2';
 
   // --- Kunci SharedPreferences ---
   static const String prefThemeMode = 'theme_mode';

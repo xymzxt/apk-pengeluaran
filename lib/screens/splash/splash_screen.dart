@@ -58,7 +58,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       // Tidak pernah menghalangi pembukaan aplikasi.
     }
 
-    ref.read(authProvider.notifier).refreshFromSession();
+    // v1.2.2: WAJIB di-await — sebelumnya tidak ditunggu sehingga
+    // sesi lama sempat terbaca "kosong" dan pengguna diminta login
+    // ulang tiap buka aplikasi (permintaan pemilik).
+    await ref.read(authProvider.notifier).refreshFromSession();
     if (ref.read(authProvider).isLoggedIn) return const MainNavigation();
     return const LoginScreen();
   }

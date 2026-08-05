@@ -27,23 +27,29 @@ enum FinalBanner {
 
 class FinalReportState {
   final ReportPeriod period; // dipakai: Harian / Bulanan / Tahunan
+
+  /// Tanggal acuan laporan (v1.2.2, permintaan pemilik): bisa digeser
+  /// ‹ › atau dipilih dari kalender — sama seperti tab Pengeluaran.
+  final DateTime anchor;
   final bool refreshing;
   final FinalBanner banner;
   final Map<String, double> incomeByDay; // 'yyyy-MM-dd' -> total
   final Map<String, double> expenseByDay; // 'yyyy-MM-dd' -> total
   final String? incomeUpdatedAt; // capaian ISO tarik terakhir
 
-  const FinalReportState({
+  FinalReportState({
     this.period = ReportPeriod.daily,
+    DateTime? anchor,
     this.refreshing = false,
     this.banner = FinalBanner.none,
     this.incomeByDay = const {},
     this.expenseByDay = const {},
     this.incomeUpdatedAt,
-  });
+  }) : anchor = anchor ?? DateTime.now();
 
   FinalReportState copyWith({
     ReportPeriod? period,
+    DateTime? anchor,
     bool? refreshing,
     FinalBanner? banner,
     Map<String, double>? incomeByDay,
@@ -52,6 +58,7 @@ class FinalReportState {
   }) {
     return FinalReportState(
       period: period ?? this.period,
+      anchor: anchor ?? this.anchor,
       refreshing: refreshing ?? this.refreshing,
       banner: banner ?? this.banner,
       incomeByDay: incomeByDay ?? this.incomeByDay,
@@ -62,7 +69,7 @@ class FinalReportState {
 }
 
 class FinalReportController extends StateNotifier<FinalReportState> {
-  FinalReportController() : super(const FinalReportState()) {
+  FinalReportController() : super(FinalReportState()) {
     // Tampilkan cache lokal seketika, lalu segarkan dari cloud.
     loadLocal();
     pullIncome();
@@ -74,6 +81,22 @@ class FinalReportController extends StateNotifier<FinalReportState> {
       '${d.day.toString().padLeft(2, '0')}';
 
   void setPeriod(ReportPeriod p) => state = state.copyWith(period: p);
+
+  /// Geser tanggal acuan ke depan/belakang sesuai periode (panah
+  /// ‹ › di layar), seperti tab Pengeluaran & aplikasi kasir.
+  void shift(int step) {
+    final a = state.anchor;
+    final next = switch (state.period) {
+      ReportPeriod.daily => DateTime(a.year, a.month, a.day + step),
+      ReportPeriod.yearly => DateTime(a.year + step),
+      _ => DateTime(a.year, a.month + step),
+    };
+    state = state.copyWith(anchor: next);
+  }
+
+  /// Lompat ke tanggal pilihan dari kalender (5 tahun ke belakang
+  /// s.d. 6 tahun ke depan — permintaan pemilik).
+  void jumpTo(DateTime date) => state = state.copyWith(anchor: date);
 
   /// Baca ulang data tersimpan (juga dipanggil dari layar Laporan
   /// setiap kali transaksi pengeluaran berubah).

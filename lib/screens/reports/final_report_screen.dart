@@ -36,14 +36,14 @@ class FinalReportScreen extends ConsumerWidget {
 
   /// Kolom-kolom yang ditampilkan sesuai periode terpilih.
   /// Harian dibatasi 5 hari (v1.2.1, permintaan pemilik) agar label
-  /// tanggal di bawah diagram tidak berdempetan.
-  static List<_Bucket> _bucketsFor(ReportPeriod p) {
-    final now = DateTime.now();
+  /// tanggal di bawah diagram tidak berdempetan. Kolom mengikuti
+  /// tanggal acuan [a] (v1.2.2): bisa digeser/dipilih dari kalender.
+  static List<_Bucket> _bucketsFor(ReportPeriod p, DateTime a) {
     if (p == ReportPeriod.daily) {
       return [
         for (var i = 4; i >= 0; i--)
-          _b(_iso(now.subtract(Duration(days: i))),
-              '${now.subtract(Duration(days: i)).day}/${now.subtract(Duration(days: i)).month}'),
+          _b(_iso(a.subtract(Duration(days: i))),
+              '${a.subtract(Duration(days: i)).day}/${a.subtract(Duration(days: i)).month}'),
       ];
     }
     if (p == ReportPeriod.monthly) {
@@ -53,12 +53,12 @@ class FinalReportScreen extends ConsumerWidget {
       ];
       return [
         for (var m = 1; m <= 12; m++)
-          _b('${now.year}-${m.toString().padLeft(2, '0')}', bln[m - 1]),
+          _b('${a.year}-${m.toString().padLeft(2, '0')}', bln[m - 1]),
       ];
     }
-    // Tahunan: 5 tahun terakhir (tahun ini paling kanan).
+    // Tahunan: 5 tahun (tahun acuan paling kanan).
     return [
-      for (var y = now.year - 4; y <= now.year; y++) _b('$y', '$y'),
+      for (var y = a.year - 4; y <= a.year; y++) _b('$y', '$y'),
     ];
   }
 
@@ -71,19 +71,58 @@ class FinalReportScreen extends ConsumerWidget {
     return t;
   }
 
-  /// Kunci "periode terpilih" untuk kartu ringkasan.
-  static String _selectedKey(ReportPeriod p) {
-    final now = DateTime.now();
-    if (p == ReportPeriod.daily) return _iso(now);
-    if (p == ReportPeriod.yearly) return '${now.year}';
-    return '${now.year}-${now.month.toString().padLeft(2, '0')}';
+  /// Kunci "periode terpilih" untuk kartu ringkasan (ikuti anchor).
+  static String _selectedKey(ReportPeriod p, DateTime a) {
+    if (p == ReportPeriod.daily) return _iso(a);
+    if (p == ReportPeriod.yearly) return '${a.year}';
+    return '${a.year}-${a.month.toString().padLeft(2, '0')}';
   }
 
-  static String _selectedLabel(ReportPeriod p) => switch (p) {
-        ReportPeriod.daily => 'Hari Ini',
-        ReportPeriod.yearly => 'Tahun Ini',
-        _ => 'Bulan Ini',
-      };
+  /// Label ringkasan: "Hari Ini/Bulan Ini/Tahun Ini" jika anchor
+  /// persis sekarang; jika digeser, tampilkan tanggalnya.
+  static String _selectedLabel(ReportPeriod p, DateTime a) {
+    final now = DateTime.now();
+    if (p == ReportPeriod.daily) {
+      final sameDay = a.year == now.year &&
+          a.month == now.month &&
+          a.day == now.day;
+      return sameDay ? 'Hari Ini' : Formatters.date(a);
+    }
+    if (p == ReportPeriod.yearly) {
+      return a.year == now.year ? 'Tahun Ini' : '${a.year}';
+    }
+    return (a.year == now.year && a.month == now.month)
+        ? 'Bulan Ini'
+        : Formatters.monthYear(a);
+  }
+
+  /// Label untuk bar geser ‹ tanggal ›.
+  static String _anchorLabel(ReportPeriod p, DateTime a) {
+    if (p == ReportPeriod.daily) return Formatters.date(a);
+    if (p == ReportPeriod.yearly) return '${a.year}';
+    return Formatters.monthYear(a);
+  }
+
+  /// Ketuk label tanggal -> kalender (v1.2.2, seperti tab Pengeluaran):
+  /// 5 tahun ke belakang s.d. 6 tahun ke depan.
+  Future<void> _pickAnchor(
+      BuildContext context, WidgetRef ref, FinalReportState state) async {
+    final start = reportCalendarStart();
+    final end = reportCalendarEnd();
+    var initial = state.anchor;
+    if (initial.isBefore(start)) initial = start;
+    if (initial.isAfter(end)) initial = end;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: start,
+      lastDate: end,
+      helpText: 'Pilih Tanggal Laporan',
+    );
+    if (picked != null) {
+      ref.read(finalReportProvider.notifier).jumpTo(picked);
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -95,8 +134,8 @@ class FinalReportScreen extends ConsumerWidget {
     ref.listen<int>(
         dataVersionProvider, (_, __) => notifier.loadLocal());
 
-    final buckets = _bucketsFor(state.period);
-    final selKey = _selectedKey(state.period);
+    final buckets = _bucketsFor(state.period, state.anchor);
+    final selKey = _selectedKey(state.period, state.anchor);
     final income = _sum(state.incomeByDay, selKey);
     final expense = _sum(state.expenseByDay, selKey);
     final laba = income - expense;
@@ -160,7 +199,50 @@ class FinalReportScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
+
+            // --- Geser / kalahkan tanggal ‹ label › (v1.2.2,
+            //     seperti tab Pengeluaran & aplikasi kasir) ---
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chevron_left_rounded),
+                  onPressed: () => notifier.shift(-1),
+                ),
+                Expanded(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () => _pickAnchor(context, ref, state),
+                    child: Tooltip(
+                      message: 'Ketuk untuk memilih tanggal',
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.calendar_month_outlined,
+                              size: 16),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              _anchorLabel(state.period, state.anchor),
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right_rounded),
+                  onPressed: () => notifier.shift(1),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
 
             // --- Banner info (bila perlu tindakan / offline) ---
             if (state.banner != FinalBanner.none)
@@ -178,7 +260,7 @@ class FinalReportScreen extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            'Ringkasan ${_selectedLabel(state.period)}',
+                            'Ringkasan ${_selectedLabel(state.period, state.anchor)}',
                             style: theme.textTheme.titleSmall
                                 ?.copyWith(fontWeight: FontWeight.w700),
                           ),
@@ -192,7 +274,7 @@ class FinalReportScreen extends ConsumerWidget {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
-                            _selectedLabel(state.period),
+                            _selectedLabel(state.period, state.anchor),
                             style: theme.textTheme.bodySmall?.copyWith(
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.w700),
